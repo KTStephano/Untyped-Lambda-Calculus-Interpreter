@@ -66,15 +66,19 @@ is reduced first, and inner-function is done last
 -}
 eval1Normal :: Term -> Maybe Term
 eval1Normal (Application a b) =
-    -- If it's a value, then apply the last rule (axiom)
-    if isValue a then Just $ subst (argument a) b (body a) else
-        -- Otherwise attempt to reduce the left branch
-        case (eval1Normal a) of
-            Just t -> Just $ Application t b
-            -- Finally, if all else failed, attempt to reduce the right branch
-            Nothing -> case (eval1Normal b) of
-                Just t' -> Just $ Application a t'
-                Nothing -> Nothing
+    -- First try to eval the left branch
+    case (eval1Normal a) of
+        -- If it worked then return
+        Just t1 -> Just $ Application t1 b
+        -- Else eval the right branch
+        Nothing -> case (eval1Normal b) of
+            -- If it worked return
+            Just t2 -> Just $ Application a t2
+            -- Else if a is a value then perform substitution,
+            -- otherwise return Nothing
+            Nothing -> if isValue a then 
+                            Just $ subst (argument a) b (body a) 
+                       else Nothing
 -- If we're down to just a function, go ahead and try and reduce it internally
 eval1Normal (Abstraction arg functionBody) =
     case (eval1Normal functionBody) of
