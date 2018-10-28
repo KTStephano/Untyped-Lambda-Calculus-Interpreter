@@ -5,22 +5,27 @@ This project uses the rules defined in "Types and Programming Languages" by Benj
 This codebase provides a simple implementation for an interactive interpreter for the untyped lambda calculus. Here are a few examples of what you can do with it while it's running:
 
 (create a binding named c0 that maps to a lambda calculus expression)
+```
 >> c0=\s. \z. z
 >> c0
 (\s. (\z. z))
+```
 
 (perform application)
-\>> tru=\t. \f. t
-\>> tru c0
+```
+>> tru=\t. \f. t
+>> tru c0
 (\f. (\s. (\z. z)))
 >> tru c0 x
 (\s. (\z. z))
+```
 
 It is also partially lazy, so you can define recursive functions that get evaluated later.
-
+```
 >> recursive= ... recursive lambda expression ...
 >> recursive x
 (might or might not finish depending on what you wrote)
+```
 
 ## Running the interpreter (requires GHC)
 You can either compile it or run it inside of GHCI. For example, to compile you can type:
