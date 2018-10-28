@@ -10,8 +10,8 @@ This codebase provides a simple implementation for an interactive interpreter fo
 (\s. (\z. z))
 
 (perform application)
->> tru=\t. \f. t
->> tru c0
+\>> tru=\t. \f. t
+\>> tru c0
 (\f. (\s. (\z. z)))
 >> tru c0 x
 (\s. (\z. z))
