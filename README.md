@@ -9,6 +9,10 @@ This codebase provides a simple implementation for an interactive interpreter fo
 >> c0=\s. \z. z
 >> c0
 (\s. (\z. z))
+>> c0=(((\s. \z. ((z)))))
+>> c0
+(\s. (\z. z))
+(Notice you can add your own parenthesis but it gets rid of all the redundant ones)
 ```
 
 (perform application)
