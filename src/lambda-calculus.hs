@@ -31,6 +31,25 @@ lambda a b = Abstraction a b
 apply :: Term -> Term -> Term
 apply a b = Application a b
 
+-- For variable renaming, see https://crypto.stanford.edu/~blynn/lambda/
+findAvailVarName :: String -> Int -> Term -> (String, Int)
+findAvailVarName v index var@(Variable x) =
+    if x == (v ++ show index) then findAvailVarName v (index + 1) var
+    else ((v ++ show index), index)
+findAvailVarName v index abs@(Abstraction n b) =
+    if n == (v ++ show index) then findAvailVarName v (index + 1) abs
+    else findAvailVarName v index b
+findAvailVarName v index app@(Application a b) =
+    let (_, newIndex) = findAvailVarName v index a in
+        findAvailVarName v newIndex b
+
+rename :: String -> String -> Term -> Term
+rename x y (Variable v) = if x == v then var y else var v
+rename x y (Abstraction arg body) = 
+    if x == arg then Abstraction y (rename x y body) else Abstraction arg (rename x y body)
+rename x y (Application a b) =
+    apply (rename x y a) (rename x y b)
+
 {-
 Capture-avoiding substitution
         The idea is that (\x. t2) t1 ==> [x->t1]t2
@@ -46,8 +65,13 @@ subst :: String -> Term -> Term -> Term
 subst x t1 t2@(Variable n) =
     if (x == n) then t1 else t2
 subst x t1 t2@(Abstraction n t) =
-    if (x == n) then t2
-    else Abstraction n (subst x t1 t)
+    if (x == n) then t2 else
+    case t1 of
+        (Variable v) -> if (v == n) then let newVar = fst $ findAvailVarName n 1 t2 in
+                                            Abstraction newVar (subst x t1 (rename n newVar t))
+                        else Abstraction n (subst x t1 t)
+        _ -> Abstraction n (subst x t1 t)
+    --else Abstraction n (subst x t1 t)
 subst x t1 (Application a b) =
     Application (subst x t1 a) (subst x t1 b)
 
@@ -64,6 +88,7 @@ Single-step reduction
 Implements normal reduction (hopefully), where the leftmost/outermost
 is reduced first, and inner-function is done last
 -}
+
 eval1Normal :: Term -> Maybe Term
 eval1Normal (Application a b) =
     -- If it's a value, then apply the last rule (axiom)
@@ -81,7 +106,22 @@ eval1Normal (Abstraction arg functionBody) =
         Just t -> Just $ Abstraction arg t
         Nothing -> Nothing
 eval1Normal _ = Nothing
-
+{-
+eval1Normal :: Term -> Maybe Term
+eval1Normal (Application n@(Abstraction arg body) b) =
+    case (eval1Normal b) of
+        Just t -> Just $ Application n t
+        Nothing -> Just $ subst arg b body
+eval1Normal (Application a b) =
+    case (eval1Normal b) of
+        Just t -> Just $ Application a t
+        Nothing -> Nothing
+eval1Normal (Abstraction arg body) =
+    case (eval1Normal body) of
+        Just t -> Just $ Abstraction arg t
+        Nothing -> Nothing
+eval1Normal _ = Nothing
+-}
 {-
 Repeatedly calls evan1Normal in a loop until it fails
 -}
