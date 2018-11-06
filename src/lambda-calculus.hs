@@ -14,12 +14,20 @@ Term is supposed to represent
 data Term = Variable {name :: String} | Abstraction {argument :: String, body :: Term} |
     Application Term Term deriving (Eq)
 
+-- Takes a single branch from an application statement and a boolean
+-- indicating if it is the left or not, and it formats it for display
+showApplication :: Term -> Bool -> String
+showApplication a@(Application _ _) isLeftBranch = 
+    if isLeftBranch then show a else "(" ++ show a ++ ")"
+showApplication v@(Variable _) _ = show v
+showApplication a@(Abstraction _ _) _ = "(" ++ show a ++ ")"
+
 -- Allows it to format the lambda calculus expressions properly
 instance Show Term where
     show (Variable n) = n
-    show (Abstraction n b) = "(\\" ++ n ++ ". " ++ show b ++ ")"
-    show (Application a b@(Application _ _)) = show a ++ " (" ++ show b ++ ")"
-    show (Application a b) = show a ++ " " ++ show b
+    --show (Abstraction n b) = "(\\" ++ n ++ ". " ++ show b ++ ")"
+    show (Abstraction n b) = "\\" ++ n ++ ". " ++ show b
+    show (Application a b) = showApplication a True ++ " " ++ showApplication b False
 
 -- Convenience functions
 var :: String -> Term
