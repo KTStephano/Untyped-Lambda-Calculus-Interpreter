@@ -91,16 +91,6 @@ Capture-avoiding substitution
     See page 70 of the Types And Programming Languages (TAPL) book.
 -}
 -- Note: t1 t2 is for [x->t1]t2
-{-
-subst :: String -> Term -> Term -> Term
-subst x t1 t2@(Variable n) =
-    if (x == n) then t1 else t2
-subst x t1 t2@(Abstraction n t) =
-    if (x == n) then t2
-    else Abstraction n (subst x t1 t)
-subst x t1 (Application a b) =
-    Application (subst x t1 a) (subst x t1 b)
--}
 subst :: String -> Term -> Term -> Term
 subst x t1 t2@(Variable v) =
     if (x == v) then t1 else t2
@@ -143,22 +133,7 @@ eval1Normal (Abstraction arg functionBody) =
         Just t -> Just $ Abstraction arg t
         Nothing -> Nothing
 eval1Normal _ = Nothing
-{-
-eval1Normal :: Term -> Maybe Term
-eval1Normal (Application n@(Abstraction arg body) b) =
-    case (eval1Normal b) of
-        Just t -> Just $ Application n t
-        Nothing -> Just $ subst arg b body
-eval1Normal (Application a b) =
-    case (eval1Normal b) of
-        Just t -> Just $ Application a t
-        Nothing -> Nothing
-eval1Normal (Abstraction arg body) =
-    case (eval1Normal body) of
-        Just t -> Just $ Abstraction arg t
-        Nothing -> Nothing
-eval1Normal _ = Nothing
--}
+
 {-
 Repeatedly calls evan1Normal in a loop until it fails
 -}
