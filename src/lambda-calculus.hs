@@ -39,24 +39,46 @@ lambda a b = Abstraction a b
 apply :: Term -> Term -> Term
 apply a b = Application a b
 
--- For variable renaming, see https://crypto.stanford.edu/~blynn/lambda/
-findAvailVarName :: String -> Int -> Term -> (String, Int)
-findAvailVarName v index var@(Variable x) =
-    if x == (v ++ show index) then findAvailVarName v (index + 1) var
-    else ((v ++ show index), index)
-findAvailVarName v index abs@(Abstraction n b) =
-    if n == (v ++ show index) then findAvailVarName v (index + 1) abs
-    else findAvailVarName v index b
-findAvailVarName v index app@(Application a b) =
-    let (_, newIndex) = findAvailVarName v index a in
-        findAvailVarName v newIndex b
+findAvailVariableName' :: String -> Int -> Term -> (String, Int)
+findAvailVariableName' newVar index (Variable v) =
+    if newVar == v then ("", index + 1)
+    else (newVar, index)
+findAvailVariableName' newVar index (Abstraction arg body) =
+    if newVar == arg then ("", index + 1)
+    else findAvailVariableName' newVar index body
+findAvailVariableName' newVar index (Application a b) =
+    if ((fst $ leftBranch) == "") then leftBranch
+    else findAvailVariableName' (fst leftBranch) (snd leftBranch) b where
+        leftBranch = findAvailVariableName' newVar index a
 
+-- Takes a string (such as "x") that you want to rename, and a Term.
+-- It then chooses a new name (i.e. "x1") and then checks to see if "x1"
+-- already exists inside the given Term. If it does, it chooses another name
+-- (i.e. "x2") and tries again.
+findAvailVariableName :: String -> Term -> String
+findAvailVariableName var term =
+    let helper index = case (findAvailVariableName' (var ++ show index) index term) of
+            ("", i) -> helper i
+            (newVar, _) -> newVar in
+                helper 1
+
+
+-- For variable renaming, see https://crypto.stanford.edu/~blynn/lambda/
 rename :: String -> String -> Term -> Term
-rename x y (Variable v) = if x == v then var y else var v
-rename x y (Abstraction arg body) = 
-    if x == arg then Abstraction y (rename x y body) else Abstraction arg (rename x y body)
-rename x y (Application a b) =
-    apply (rename x y a) (rename x y b)
+rename from to (Variable v) =
+    if from == v then Variable to else Variable v
+rename from to abs@(Abstraction arg body) =
+    if from == arg then Abstraction to (rename from to body)
+    else Abstraction arg (rename from to body)
+rename from to (Application a b) =
+    Application (rename from to a) (rename from to b)
+
+contains :: Term -> Term -> Bool
+-- Answers the question "does the right term contain the left term (t)?"
+contains t v@(Variable _) = t == v
+contains t abs@(Abstraction _ body) = t == abs
+contains t app@(Application a b) = or [t == app, t == a, t == b, 
+                                       contains t a, contains t b]
 
 {-
 Capture-avoiding substitution
@@ -69,17 +91,24 @@ Capture-avoiding substitution
     See page 70 of the Types And Programming Languages (TAPL) book.
 -}
 -- Note: t1 t2 is for [x->t1]t2
+{-
 subst :: String -> Term -> Term -> Term
 subst x t1 t2@(Variable n) =
     if (x == n) then t1 else t2
 subst x t1 t2@(Abstraction n t) =
-    if (x == n) then t2 else
-    case t1 of
-        (Variable v) -> if (v == n) then let newVar = fst $ findAvailVarName n 1 t2 in
-                                            Abstraction newVar (subst x t1 (rename n newVar t))
-                        else Abstraction n (subst x t1 t)
-        _ -> Abstraction n (subst x t1 t)
-    --else Abstraction n (subst x t1 t)
+    if (x == n) then t2
+    else Abstraction n (subst x t1 t)
+subst x t1 (Application a b) =
+    Application (subst x t1 a) (subst x t1 b)
+-}
+subst :: String -> Term -> Term -> Term
+subst x t1 t2@(Variable v) =
+    if (x == v) then t1 else t2
+subst x t1 t2@(Abstraction arg body) =
+    if (x == arg) then t2 else
+        if (contains (var arg) t1) then subst x t1 (rename arg newArg t2)
+        else Abstraction arg (subst x t1 body) where
+            newArg = findAvailVariableName arg (apply t1 t2)
 subst x t1 (Application a b) =
     Application (subst x t1 a) (subst x t1 b)
 
@@ -291,6 +320,7 @@ repl' env = do
                 else do
                     let reducedForm = evalNormal $ replaceVarsWithEnvEntries (fst t) env
                     putStrLn (show reducedForm)
+                    --evalNormalDebug $ replaceVarsWithEnvEntries (fst t) env
                 repl' env
         -- This case triggers if parseEnvEntry succeeded, meaning the input was of
         -- the form t1 = t2
